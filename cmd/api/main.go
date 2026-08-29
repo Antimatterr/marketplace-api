@@ -3,11 +3,14 @@ package main
 import (
 	"log"
 	"net/http"
-	_ "net/http/pprof"
 	"time"
+
+	"github.com/Antimatterr/marketplace-api/internal/config"
 )
 
 func main() {
+
+	cfg := config.MustLoad()
 
 	mux := http.NewServeMux()
 
@@ -20,13 +23,14 @@ func main() {
 	})
 
 	srv := http.Server{
-		Addr:         ":8001",
+		Addr:         ":" + cfg.Port,
 		Handler:      mux,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
+	log.Printf("Server is listening on %s", srv.Addr)
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed : %v", err)
 	}
