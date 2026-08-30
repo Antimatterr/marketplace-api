@@ -6,22 +6,20 @@ import (
 	"time"
 
 	"github.com/Antimatterr/marketplace-api/internal/config"
+	"github.com/Antimatterr/marketplace-api/internal/handlers"
 )
 
 func main() {
 
 	cfg := config.MustLoad()
 
+	// Create a new router instead of using the default servemux to avoid polluting the global state
+	// and to have better control over registered routes and handlers
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /health", handlers.Health)
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status": "OK"}`))
-
-	})
-
+	// Initialize HTTP server with timeouts to prevent resource exhaustion and hanging connections
 	srv := http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      mux,
