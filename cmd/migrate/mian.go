@@ -36,9 +36,16 @@ func main() {
 		}
 	case "down":
 		log.Printf("migration down called")
-		if err := m.Down(); err != nil {
+		if err := m.Steps(-1); err != nil {
 			log.Fatalf("migration.down: %v", err)
 		}
+	case "version":
+		version, _, err := m.Version()
+		if err != nil {
+			log.Printf("error: %v", err)
+		}
+		log.Printf("Current migration: %d", version)
+
 	default:
 		log.Fatalf("unknowsn command for migration: %s", args[1])
 	}
