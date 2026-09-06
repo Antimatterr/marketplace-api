@@ -6,12 +6,17 @@ import (
 	"time"
 
 	"github.com/Antimatterr/marketplace-api/internal/config"
+	"github.com/Antimatterr/marketplace-api/internal/db"
 	"github.com/Antimatterr/marketplace-api/internal/handlers"
 )
 
 func main() {
 
 	cfg := config.MustLoad()
+	_, err := db.Connect(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("main.db.connect: %v", err)
+	}
 
 	// Create a new router instead of using the default servemux to avoid polluting the global state
 	// and to have better control over registered routes and handlers
