@@ -18,12 +18,16 @@ func main() {
 		log.Fatalf("main.db.connect: %v", err)
 	}
 
+	//initialize the constructore
+	listingHandler := handlers.NewListingHandler(db)
+
 	// Create a new router instead of using the default servemux to avoid polluting the global state
 	// and to have better control over registered routes and handlers
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", handlers.Health)
-	mux.HandleFunc("GET /listings", handlers.Listings(db))
+	mux.HandleFunc("GET /listings", listingHandler.List)
+	mux.HandleFunc("DELETE /listings/{id}", listingHandler.Delete)
 
 	// Initialize HTTP server with timeouts to prevent resource exhaustion and hanging connections
 	srv := http.Server{
