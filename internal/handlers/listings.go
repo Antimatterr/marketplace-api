@@ -98,7 +98,7 @@ func (lh ListingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	query := "DELETE FROM listings WHERE id=$1"
 	result, err := lh.db.ExecContext(ctx, query, id)
 	if err != nil {
-		log.Print("delete: %w", err)
+		log.Printf("delete: %v", err)
 		http.Error(w, "failed to delete user", http.StatusInternalServerError)
 		return
 	}
