@@ -29,7 +29,9 @@ func NewListingHandler(db *sql.DB) *ListingHandler {
 // attach this method to the listing handler struct
 // concept is called method receiver -> need to check when we use reference pointer and when we use the value
 func (lh ListingHandler) List(w http.ResponseWriter, r *http.Request) {
-	rows, err := lh.db.Query(`SELECT id, title, description, price, city, created_at
+	//request scoped context
+	ctx := r.Context()
+	rows, err := lh.db.QueryContext(ctx, `SELECT id, title, description, price, city, created_at
 		FROM listings
 		ORDER BY created_at DESC
 		LIMIT 100`)
@@ -87,13 +89,14 @@ func (lh ListingHandler) List(w http.ResponseWriter, r *http.Request) {
 // }
 
 func (lh ListingHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing id", http.StatusBadRequest)
 		return
 	}
 	query := "DELETE FROM listings WHERE id=$1"
-	result, err := lh.db.Exec(query, id)
+	result, err := lh.db.ExecContext(ctx, query, id)
 	if err != nil {
 		log.Print("delete: %w", err)
 		http.Error(w, "failed to delete user", http.StatusInternalServerError)
