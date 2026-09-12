@@ -3,7 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 )
 
@@ -17,12 +17,14 @@ type listing struct {
 }
 
 type ListingHandler struct {
-	db *sql.DB
+	db     *sql.DB
+	logger *slog.Logger
 }
 
-func NewListingHandler(db *sql.DB) *ListingHandler {
+func NewListingHandler(db *sql.DB, logger *slog.Logger) *ListingHandler {
 	return &ListingHandler{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }
 
@@ -36,7 +38,7 @@ func (lh ListingHandler) List(w http.ResponseWriter, r *http.Request) {
 		ORDER BY created_at DESC
 		LIMIT 100`)
 	if err != nil {
-		log.Printf("listing.query: %v", err)
+		lh.logger.Error("listing.query failed", "error", err)
 		http.Error(w, "internal erro", http.StatusInternalServerError)
 		return
 	}
@@ -45,14 +47,14 @@ func (lh ListingHandler) List(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var l listing
 		if err := rows.Scan(&l.Id, &l.Title, &l.Description, &l.Price, &l.City, &l.CreatedAt); err != nil {
-			log.Printf("rows.scan: %v", err)
+			lh.logger.Error("rows.scan failed", "error", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 		listings = append(listings, l)
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("rows.err: %v", err)
+		lh.logger.Error("rows.err failer", "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
 
@@ -91,20 +93,18 @@ func (lh ListingHandler) List(w http.ResponseWriter, r *http.Request) {
 func (lh ListingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := r.PathValue("id")
-	if id == "" {
-		http.Error(w, "missing id", http.StatusBadRequest)
-		return
-	}
+
 	query := "DELETE FROM listings WHERE id=$1"
 	result, err := lh.db.ExecContext(ctx, query, id)
 	if err != nil {
-		log.Printf("delete: %v", err)
+		lh.logger.Error("delete failed", "listing_id", id, "error", err)
 		http.Error(w, "failed to delete user", http.StatusInternalServerError)
 		return
 	}
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		http.Error(w, "no user found", http.StatusBadRequest)
+		lh.logger.Info("no user found", "listing_id", id)
+		http.Error(w, "no user found", http.StatusNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

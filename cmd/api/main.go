@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/Antimatterr/marketplace-api/internal/config"
@@ -18,8 +20,12 @@ func main() {
 		log.Fatalf("main.db.connect: %v", err)
 	}
 
-	//initialize the constructore
-	listingHandler := handlers.NewListingHandler(db)
+	//create new logger for handling JSON and set as default
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: slog.LevelInfo}))
+	slog.SetDefault(logger)
+
+	//initialize the constructor
+	listingHandler := handlers.NewListingHandler(db, logger)
 
 	// Create a new router instead of using the default servemux to avoid polluting the global state
 	// and to have better control over registered routes and handlers
