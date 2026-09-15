@@ -10,6 +10,7 @@ import (
 	"github.com/Antimatterr/marketplace-api/internal/config"
 	"github.com/Antimatterr/marketplace-api/internal/db"
 	"github.com/Antimatterr/marketplace-api/internal/handlers"
+	"github.com/Antimatterr/marketplace-api/internal/middleware"
 )
 
 func main() {
@@ -21,11 +22,11 @@ func main() {
 	}
 
 	//create new logger for handling JSON and set as default
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: slog.LevelInfo}))
-	slog.SetDefault(logger)
+	logHandler := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: slog.LevelInfo}))
+	slog.SetDefault(logHandler)
 
 	//initialize the constructor
-	listingHandler := handlers.NewListingHandler(db, logger)
+	listingHandler := handlers.NewListingHandler(db, logHandler)
 
 	// Create a new router instead of using the default servemux to avoid polluting the global state
 	// and to have better control over registered routes and handlers
@@ -35,10 +36,13 @@ func main() {
 	mux.HandleFunc("GET /listings", listingHandler.List)
 	mux.HandleFunc("DELETE /listings/{id}", listingHandler.Delete)
 
+	//wrap the mux handler with the requestId middleware
+	muxHandler := middleware.RequestId(mux)
+
 	// Initialize HTTP server with timeouts to prevent resource exhaustion and hanging connections
 	srv := http.Server{
 		Addr:         ":" + cfg.Port,
-		Handler:      mux,
+		Handler:      muxHandler,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
