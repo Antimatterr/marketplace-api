@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/Antimatterr/marketplace-api/internal/httpx"
 	"github.com/Antimatterr/marketplace-api/internal/middleware"
 )
 
@@ -41,7 +42,7 @@ func (lh ListingHandler) List(w http.ResponseWriter, r *http.Request) {
 		LIMIT 100`)
 	if err != nil {
 		lh.logger.Error("listing.query failed", "error", err)
-		http.Error(w, "internal erro", http.StatusInternalServerError)
+		httpx.Error(w, http.StatusInternalServerError, "internal server error", httpx.CodeInternalError)
 		return
 	}
 	defer rows.Close()
@@ -50,14 +51,14 @@ func (lh ListingHandler) List(w http.ResponseWriter, r *http.Request) {
 		var l listing
 		if err := rows.Scan(&l.Id, &l.Title, &l.Description, &l.Price, &l.City, &l.CreatedAt); err != nil {
 			lh.logger.Error("rows.scan failed", "error", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
+			httpx.Error(w, http.StatusInternalServerError, "internal server error", httpx.CodeInternalError)
 			return
 		}
 		listings = append(listings, l)
 	}
 	if err := rows.Err(); err != nil {
 		lh.logger.Error("rows.err failer", "error", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		httpx.Error(w, http.StatusInternalServerError, "internal server error", httpx.CodeInternalError)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -101,13 +102,13 @@ func (lh ListingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	result, err := lh.db.ExecContext(ctx, query, id)
 	if err != nil {
 		lh.logger.Error("delete failed", "listing_id", id, "requestId", requestId, "error", err)
-		http.Error(w, "failed to delete user", http.StatusInternalServerError)
+		httpx.Error(w, http.StatusInternalServerError, "Internal Error", httpx.CodeInternalError)
 		return
 	}
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		lh.logger.Info("no user found", "listing_id", id)
-		http.Error(w, "no user found", http.StatusNotFound)
+		lh.logger.Info("not found", "listing_id", id)
+		httpx.Error(w, http.StatusNotFound, "Not found", httpx.CodeNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
