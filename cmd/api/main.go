@@ -35,6 +35,7 @@ func main() {
 	mux.HandleFunc("GET /health", handlers.Health)
 	mux.HandleFunc("GET /listings", listingHandler.List)
 	mux.HandleFunc("DELETE /listings/{id}", listingHandler.Delete)
+	mux.HandleFunc("POST /listings", listingHandler.Create)
 
 	//wrap the mux handler with the requestId middleware
 	muxHandler := middleware.RequestId(mux)

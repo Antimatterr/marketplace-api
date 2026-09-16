@@ -5,18 +5,19 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/Antimatterr/marketplace-api/internal/httpx"
 	"github.com/Antimatterr/marketplace-api/internal/middleware"
 )
 
 type listing struct {
-	Id          string `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Price       string `json:"price"`
-	City        string `json:"city"`
-	CreatedAt   string `json:"created_at"`
+	Id          string    `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Price       int64     `json:"price"`
+	City        string    `json:"city"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type ListingHandler struct {
@@ -112,4 +113,34 @@ func (lh ListingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (lh ListingHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var req CreateListingRequest
+	ctx := r.Context()
+	requestId := middleware.GetRequestIdFromContext(ctx)
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		lh.logger.Error("request parsing failed", "request_id", requestId, "error", err)
+		httpx.Error(w, http.StatusBadRequest, "invalid body", httpx.CodeMalformedJSON)
+		return
+	}
+
+	row := lh.db.QueryRowContext(ctx, `INSERT INTO listings (title,description,price,city) VALUES($1, $2, $3, $4) RETURNING id, title, created_at`,
+		req.Title, req.Description, req.Price, req.City)
+
+	var listing CreatedListingResponse
+	err = row.Scan(&listing.Id, &listing.Title, &listing.CreatedAt)
+	if err != nil {
+		lh.logger.Error("failed to insert", "request_id", requestId, "error", err)
+		httpx.Error(w, http.StatusInternalServerError, "Something went wrong", httpx.CodeInternalError)
+		return
+	}
+
+	lh.logger.Info("listing created", "request_id", requestId, "listing_id", listing.Id)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(listing)
+
 }

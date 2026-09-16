@@ -17,6 +17,7 @@ var (
 	CodeForbidden        = Code{"forbidden"}
 	CodeUnauthenticated  = Code{"unauthenticated"}
 	CodeFailedValidation = Code{"validation_failed"}
+	CodeMalformedJSON    = Code{"malformed_json"}
 )
 
 type errorPayload struct {
