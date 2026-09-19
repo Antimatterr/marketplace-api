@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/Antimatterr/marketplace-api/internal/config"
@@ -49,8 +53,37 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	log.Printf("Server is listening on %s", srv.Addr)
-	if err := srv.ListenAndServe(); err != nil {
-		log.Fatalf("Server failed : %v", err)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	serverErrs := make(chan error, 1)
+	go func() {
+		log.Printf("Server is listening on %s", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErrs <- err
+		}
+	}()
+
+	select {
+	case err := <-serverErrs:
+		log.Fatalf("server failed: %v", err)
+	case <-ctx.Done():
+		log.Println("shutdown signal received, draining connections...")
 	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	err = srv.Shutdown(shutdownCtx)
+	if err != nil {
+		log.Printf("graceful shutdown failed: %v", err)
+	}
+
+	err = db.Close()
+	if err != nil {
+		log.Printf("db close failed: %v", err)
+	}
+
+	log.Println("server stopped cleanly")
+
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -123,6 +124,13 @@ func (lh ListingHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		lh.logger.Error("request parsing failed", "request_id", requestId, "error", err)
 		httpx.Error(w, http.StatusBadRequest, "invalid body", httpx.CodeMalformedJSON)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		var validationError *ValidationError
+		errors.As(err, &validationError)
+		httpx.ValidationError(w, http.StatusUnprocessableEntity, err.Error(), httpx.CodeMalformedJSON, validationError.Field)
 		return
 	}
 
